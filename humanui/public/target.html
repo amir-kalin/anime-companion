@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Watchlist Console — human UI test target</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #12161c; background: #eef1f6;
+  }
+  header { background: #12161c; color: #fff; padding: 14px 22px; display: flex; gap: 16px; align-items: baseline; }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  header .sub { font-size: 11px; opacity: .65; }
+  main { display: grid; grid-template-columns: 340px 1fr; gap: 18px; padding: 18px 22px; align-items: start; }
+  .panel { background: #fff; border: 1px solid #d7dce5; border-radius: 10px; padding: 16px; }
+  .panel + .panel { margin-top: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: #5b6472; margin: 0 0 12px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: #47505e; margin: 12px 0 5px; }
+  input[type=text], select, textarea {
+    width: 100%; padding: 8px 10px; font: inherit; font-size: 14px;
+    border: 1px solid #c3cad6; border-radius: 7px; background: #fff;
+  }
+  input:focus-visible, select:focus, button:focus-visible, textarea:focus-visible {
+    outline: 2px solid #3b6fd4; outline-offset: 1px;
+  }
+  .row { display: flex; gap: 8px; margin-top: 14px; }
+  button {
+    font: inherit; font-size: 13px; font-weight: 600; padding: 8px 13px; border-radius: 7px;
+    border: 1px solid #c3cad6; background: #f7f9fc; color: #12161c; cursor: pointer;
+  }
+  button.primary { background: #3b6fd4; border-color: #2f5cb4; color: #fff; }
+  button.danger { background: #c62f3d; border-color: #a02430; color: #fff; }
+  button:hover { filter: brightness(.97); }
+  /* Tiny, low-contrast text: the case the vendor docs say to solve with zoom. */
+  .micro { font-size: 9px; color: #8a93a2; letter-spacing: .3px; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid #eceff4; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #6b7482; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+  .chip.airing { background: #fdecec; color: #b3242f; }
+  .chip.done { background: #e6f5ea; color: #1d6b34; }
+  .chip.queued { background: #eaf0fd; color: #2b4f9e; }
+  .banner { margin: 14px 22px 0; padding: 11px 14px; border-radius: 8px; font-size: 13px; display: none; }
+  .banner.ok { display: block; background: #e6f5ea; border: 1px solid #9dd3ae; color: #1d6b34; }
+  .banner.warn { display: block; background: #fdf3e2; border: 1px solid #e5c07b; color: #7a5312; }
+  canvas { border: 1px solid #d7dce5; border-radius: 6px; background: #fff; width: 100%; }
+  iframe { width: 100%; height: 92px; border: 1px dashed #c3cad6; border-radius: 6px; background: #fbfcfe; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  #log { font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #4a5462;
+         background: #f7f9fc; border: 1px solid #e6eaf1; border-radius: 6px; padding: 8px; height: 108px; overflow: auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Watchlist Console</h1>
+  <span class="sub">human-facing UI used as an agent target</span>
+</header>
+
+<div id="banner" class="banner" role="status" aria-live="polite"></div>
+
+<main>
+  <div>
+    <section class="panel">
+      <h2>Filters</h2>
+
+      <label for="q">Search title</label>
+      <input id="q" type="text" placeholder="e.g. penguin" autocomplete="off">
+
+      <label for="status">Status</label>
+      <select id="status">
+        <option value="">All statuses</option>
+        <option value="airing">Airing</option>
+        <option value="queued">Queued</option>
+        <option value="done">Done</option>
+      </select>
+
+      <label for="season">Season</label>
+      <input id="season" type="text" value="S2">
+
+      <div class="row">
+        <button id="apply" class="primary" type="button">Apply filters</button>
+        <button id="reset" type="button">Reset</button>
+      </div>
+      <p class="micro" id="micro">src: local profile · cache-buster 8f21c · viewport 1440x900</p>
+    </section>
+
+    <section class="panel">
+      <h2>Queue</h2>
+      <label>
+        <input type="checkbox" id="notify"> Notify me when a new episode airs
+      </label>
+      <div class="row">
+        <label for="priority" style="margin:0; flex:1">Priority
+          <select id="priority" style="margin-top:5px">
+            <option>Low</option>
+            <option selected>Normal</option>
+            <option>High</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <button id="add" type="button">Add to queue</button>
+        <button id="wipe" class="danger" type="button">Delete everything</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Activity</h2>
+      <div id="log" aria-label="Activity log"></div>
+    </section>
+  </div>
+
+  <div>
+    <section class="panel">
+      <h2>Matches</h2>
+      <table>
+        <thead>
+          <tr><th>Title</th><th>Ep</th><th>Status</th><th>Score</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="micro" id="count"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Watch time by day</h2>
+      <!-- No accessible name and no semantic node: the pixel-only case. -->
+      <canvas id="chart" width="720" height="180" aria-hidden="true"></canvas>
+      <p class="micro">Canvas chart — invisible to the accessibility tree. Requires coordinates or zoom.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Now playing</h2>
+      <!-- Cross-document content the parent cannot introspect: the iframe case. -->
+      <iframe id="player" title="Now playing preview" src="about:blank"></iframe>
+      <div class="row"><button id="playpause" type="button">Play / Pause</button></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const DATA = [
+  { title: 'Penguin Highway',        ep: 11, status: 'airing', score: 91 },
+  { title: 'Polar Bear Cafe',         ep: 4,  status: 'queued', score: 88 },
+  { title: 'Nightmarch',              ep: 1,  status: 'queued', score: 74 },
+  { title: 'The Ice King',            ep: 7,  status: 'airing', score: 69 },
+  { title: 'Antarctic Drift',         ep: 22, status: 'done',   score: 95 },
+  { title: 'Snowfall Diaries',        ep: 3,  status: 'done',   score: 82 },
+  { title: 'Ember and Frost',         ep: 9,  status: 'airing', score: 77 },
+];
+
+const $ = (id) => document.getElementById(id);
+const logEl = $('log');
+const rowsEl = $('rows');
+const banner = $('banner');
+
+function log(msg) {
+  const line = document.createElement('div');
+  line.textContent = `${new Date().toLocaleTimeString()}  ${msg}`;
+  logEl.prepend(line);
+}
+
+function visible() {
+  const q = $('q').value.trim().toLowerCase();
+  const status = $('status').value;
+  const season = $('season').value.trim().toLowerCase();
+  return DATA.filter((d) => {
+    if (q && !d.title.toLowerCase().includes(q)) return false;
+    if (status && d.status !== status) return false;
+    if (season && !season.startsWith('s')) return false;
+    return true;
+  });
+}
+
+function render() {
+  const list = visible();
+  rowsEl.replaceChildren(...list.map((d) => {
+    const tr = document.createElement('tr');
+    const chip = document.createElement('span');
+    chip.className = `chip ${d.status}`;
+    chip.textContent = d.status;
+    for (const [i, val] of [d.title, d.ep, null, d.score].entries()) {
+      const td = document.createElement('td');
+      if (i === 2) td.append(chip); else td.textContent = val;
+      tr.append(td);
+    }
+    return tr;
+  }));
+  $('count').textContent = `${list.length} of ${DATA.length} titles match.`;
+  draw(list);
+  return list;
+}
+
+function draw(list) {
+  const c = $('chart'), g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  const vals = list.length ? list.map((d) => d.score) : [0];
+  const bw = c.width / 7;
+  g.fillStyle = '#3b6fd4';
+  vals.forEach((v, i) => {
+    const h = (v / 100) * (c.height - 24);
+    g.fillRect(i * bw + 6, c.height - 16 - h, bw - 12, h);
+  });
+  g.fillStyle = '#8a93a2';
+  g.font = '10px system-ui';
+  g.fillText('Mon', 6, c.height - 4);
+  g.fillText('Sun', c.width - 26, c.height - 4);
+}
+
+function say(text, kind = 'ok') {
+  banner.className = `banner ${kind}`;
+  banner.textContent = text;
+}
+
+$('apply').addEventListener('click', () => {
+  const n = render().length;
+  log(`apply filters -> ${n} match(es)`);
+  say(`Filters applied. ${n} title${n === 1 ? '' : 's'} match.`);
+});
+
+$('reset').addEventListener('click', () => {
+  $('q').value = ''; $('status').value = ''; $('season').value = 'S2';
+  render();
+  log('filters reset');
+  say('Filters reset.', 'warn');
+});
+
+$('add').addEventListener('click', () => {
+  log(`queue add (notify=${$('notify').checked}, priority=${$('priority').value})`);
+  say('Added to queue.');
+});
+
+$('wipe').addEventListener('click', () => {
+  DATA.length = 0;
+  render();
+  log('wipe: all records deleted');
+  say('All records deleted.', 'warn');
+});
+
+$('playpause').addEventListener('click', () => log('play/pause toggled'));
+$('q').addEventListener('input', () => render());
+$('status').addEventListener('change', () => render());
+
+$('player').addEventListener('load', () => {
+  const d = $('player').contentDocument;
+  if (!d) return;
+  d.body.innerHTML = '<p style="font:12px system-ui;padding:10px;margin:0">Embedded preview — EP 11</p>';
+});
+
+render();
+log('console ready');
+say('Console ready.');
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "name": "anime-companion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local anime AI companion with a Three.js animation state machine, procedural micro-expressions, and audio-driven viseme lip-sync",
+  "scripts": {
+    "start": "node start-all.mjs",
+    "listener": "node tools/agent-listener.mjs",
+    "gemini": "node tools/agent-listener.mjs",
+    "overlay": "python tools/desktop_overlay.py",
+    "status": "node start-all.mjs --status",
+    "dev": "vite",
+    "dev:voice": "python voice/local_voice.py --port 4123",
+    "build": "vite build && node tools/prune-assets.mjs dist",
+    "preview": "vite preview --port 4173",
+    "android:sync": "npm run build && cap copy android",
+    "android:apk": "node tools/android.mjs apk",
+    "android:run": "node tools/android.mjs run",
+    "android:devices": "node tools/android.mjs devices",
+    "inspect:fbx": "node tools/inspect-fbx.mjs",
+    "bench:reasoning": "node tools/bench-reasoning.mjs",
+    "verify:seat": "node tools/verify-seat.mjs 1.463 1.08 1.401",
+    "test:anim-tag": "node tools/test-anim-tag.mjs",
+    "test:memory": "node tools/test-memory-race.mjs",
+    "test:persona": "node tools/test-persona.mjs",
+    "test:substance": "node tools/test-substance.mjs",
+    "test:registers": "node tools/test-registers.mjs",
+    "test:cloud": "node tools/test-cloud-fallback.mjs",
+    "audit:phone": "node tools/phone-layout.mjs",
+    "probe:persona": "node tools/probe-copying.mjs 3",
+    "probe:anim": "node tools/probe-anim-tag.mjs",
+    "test": "node tools/test-anim-tag.mjs && node tools/test-memory-race.mjs && node tools/verify-seat.mjs 1.463 1.08 1.401"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}

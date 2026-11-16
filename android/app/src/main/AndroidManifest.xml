@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Dictation. The mic capture runs entirely on the PC - the phone records
+      the audio and ships it to the local Whisper service over the tailnet -
+      but the RECORD_AUDIO permission has to be held on the device doing the
+      recording, so the app asks for it.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
+      The mic is optional: the app is fully usable by typing, and Android
+      would otherwise hide the app from the Play Store's "needs a mic"
+      filter. It also stops the permission prompt appearing on install for
+      anyone who only ever types.
+    -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!--
+      Keep the screen on while she is talking. The web side also requests a
+      screen wake lock, but that is best-effort and needs a gesture; this is
+      the reliable half.
+    -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+</manifest>

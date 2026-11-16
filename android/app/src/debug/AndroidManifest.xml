@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only manifest.
+
+  The release build talks to the PC over Tailscale, which is HTTPS, so it
+  needs no cleartext permission and does not get one.
+
+  The DEBUG build is the one used for testing against a local dev server on
+  the same machine, where the address is plain HTTP
+  (http://127.0.0.1:5180, reached through `adb reverse`). The WebView
+  blocks cleartext subresources from an HTTPS page, so the emulator test
+  would fail on the network layer before it ever reached the app logic.
+
+  Rather than weaken the release build, the permission is added here, to the
+  debug source set only.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:usesCleartextTraffic="true"
+        tools:replace="android:usesCleartextTraffic" />
+</manifest>

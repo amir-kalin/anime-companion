@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>humanui — code-execution computer-use harness</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0d1117; --panel: #151b23; --panel2: #1c232d; --line: #2a323d;
+    --fg: #e6edf3; --dim: #8b98a9; --accent: #4c8dff; --ok: #3fb950;
+    --warn: #d29922; --bad: #f85149; --semantic: #3fb950; --perceptual: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px; padding: 11px 18px;
+    border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header h1 { font-size: 15px; margin: 0; letter-spacing: .3px; }
+  header .tag { font-size: 11px; color: var(--dim); }
+  .spacer { flex: 1; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+  .dot.live { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.busy { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+
+  /* minmax(0, …) is load-bearing: a grid child defaults to min-width:auto, so a wide <pre>
+     refuses to shrink and pushes the column past the viewport instead of scrolling. */
+  main {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1.1fr) minmax(0, 1fr);
+    height: calc(100vh - 49px);
+  }
+  @media (max-width: 1500px) {
+    main { grid-template-columns: 330px minmax(0, 1fr); grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr); }
+    main > section:nth-child(2) { border-right: 0; }
+    main > section:nth-child(3) { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+  }
+  @media (max-width: 980px) {
+    main { display: block; height: auto; }
+    main > section { height: auto; max-height: 70vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+
+  section { min-width: 0; overflow: auto; padding: 14px; }
+  section:last-child { border-right: 0; }
+  h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .9px;
+    color: var(--dim); margin: 0 0 10px;
+  }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 11px; margin-bottom: 12px; }
+
+  label { display: block; font-size: 11px; color: var(--dim); margin: 9px 0 4px; }
+  textarea, input[type=text], select {
+    width: 100%; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical;
+  }
+  button {
+    background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 11px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+  button.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .row { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+
+  #shots { display: flex; flex-direction: column; gap: 9px; }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  figure img { width: 100%; display: block; }
+  figcaption { font: 10px/1.5 ui-monospace, Menlo, monospace; color: var(--dim); padding: 6px 9px; border-top: 1px solid var(--line); }
+
+  .step { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .step > .hd {
+    display: flex; gap: 8px; align-items: center; padding: 7px 10px;
+    background: var(--panel2); font-size: 11px; color: var(--dim);
+  }
+  .step.ok .hd { color: var(--ok); }
+  .step.bad .hd { color: var(--bad); }
+  pre {
+    margin: 0; padding: 10px; font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-word; overflow-x: auto;
+  }
+  pre.code { background: #0a0e13; color: #c9d1d9; }
+  pre.out { background: var(--panel); color: var(--fg); border-top: 1px solid var(--line); }
+  pre.err { background: #2d1416; color: #ffb3ad; border-top: 1px solid var(--line); }
+
+  .ev { font: 11px/1.6 ui-monospace, Menlo, monospace; color: var(--dim); padding: 2px 0; border-bottom: 1px solid #1c232d; }
+  .ev b { color: var(--fg); font-weight: 600; }
+
+  .gate { border: 1px solid var(--bad); border-radius: 8px; padding: 11px; margin-bottom: 11px; background: #2d1416; }
+  .gate .risk { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #ffb3ad; }
+  .gate .why { font-size: 12px; margin: 5px 0 9px; }
+
+  .chip { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+  .chip.semantic { background: rgba(63,185,80,.16); color: var(--semantic); }
+  .chip.perceptual { background: rgba(210,153,34,.16); color: var(--perceptual); }
+  .chip.none { background: #232b36; color: var(--dim); }
+  .hint { font-size: 11px; color: var(--dim); margin-top: 7px; line-height: 1.5; }
+  .banner { display: none; padding: 8px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
+  .banner.show { display: block; }
+  .banner.info { background: #12233f; border: 1px solid #2c4a7a; }
+  .banner.warn { background: #2d2410; border: 1px solid #6b5518; color: #f0d089; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>humanui</h1>
+  <span class="tag">code-execution computer-use harness</span>
+  <span class="spacer"></span>
+  <span class="dot" id="conn"></span>
+  <span class="tag" id="status">connecting…</span>
+</header>
+
+<main>
+  <!-- ------------------------------------------------ controls -->
+  <section>
+    <h2>Run</h2>
+
+    <div class="banner info" id="modeNote">
+      Scenarios use the offline planner, so they run with no model configured.
+    </div>
+
+    <div class="panel">
+      <label for="scenario">Scenario (no model needed)</label>
+      <select id="scenario"></select>
+      <label for="task">…or a live task</label>
+      <textarea id="task" rows="3" placeholder="Show only airing titles, then add the first one to the queue."></textarea>
+      <div class="row">
+        <button class="primary" id="runScenario">Run scenario</button>
+        <button id="runTask">Run live task</button>
+        <button id="cancel" disabled>Cancel</button>
+      </div>
+    </div>
+
+    <h2>Safety interlock</h2>
+    <div class="panel">
+      <label for="approvalMode">Mode</label>
+      <select id="approvalMode">
+        <option value="ask">Ask before risky actions (fail-closed)</option>
+        <option value="allow-all">Allow everything (sandbox only)</option>
+        <option value="deny-all">Deny anything classified risky</option>
+      </select>
+      <p class="hint">
+        The check runs inside the executor, per action — not around the model turn — because one
+        turn can carry several actions.
+      </p>
+    </div>
+
+    <div id="gates"></div>
+
+    <h2>Manual step</h2>
+    <div class="panel">
+      <label for="code">Program (runs in the persistent sandbox)</label>
+      <textarea id="code" rows="9"></textarea>
+      <div class="row"><button id="step">exec_js</button><button id="snap">snapshot()</button></div>
+      <pre class="out" id="manualOut" style="display:none"></pre>
+    </div>
+
+    <h2>Persistent globals</h2>
+    <div class="panel"><pre id="globals" style="color:var(--dim)">[]</pre></div>
+  </section>
+
+  <!-- ------------------------------------------------ steps -->
+  <section>
+    <h2>Agent steps</h2>
+    <div id="steps"></div>
+    <h2 style="margin-top:18px">Event stream</h2>
+    <div id="events"></div>
+  </section>
+
+  <!-- ------------------------------------------------ observations -->
+  <section>
+    <h2>Observations the agent returns</h2>
+    <div id="shots"><p class="hint">Screenshots passed back with <code>display()</code> appear here.</p></div>
+    <h2 style="margin-top:18px">Accessibility tree</h2>
+    <div class="panel"><pre id="ax" style="max-height:340px;overflow:auto;color:var(--dim)">(press snapshot)</pre></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let state = { running: false, approvalMode: 'ask', scenarios: {} };
+let lastRunSignature = '';
+const pending = new Map();
+
+// ---------------------------------------------------------------- transport
+
+function connect() {
+  const es = new EventSource('/api/events');
+  es.onopen = () => { $('conn').className = 'dot live'; $('status').textContent = 'connected'; };
+  es.onerror = () => { $('conn').className = 'dot'; $('status').textContent = 'reconnecting…'; };
+  es.onmessage = (ev) => handle(JSON.parse(ev.data));
+}
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined
+    ? {}
+    : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? res.statusText);
+  return data;
+}
+
+// ---------------------------------------------------------------- rendering
+
+function logEvent(e) {
+  const row = document.createElement('div');
+  row.className = 'ev';
+  const bits = [];
+  if (e.turn) bits.push(`t${e.turn}`);
+  bits.push(e.type);
+  if (e.ok !== undefined) bits.push(e.ok ? 'ok' : 'failed');
+  if (e.stopReason) bits.push(e.stopReason);
+  if (e.steps !== undefined) bits.push(`${e.steps} steps`);
+  if (e.durationMs !== undefined) bits.push(`${e.durationMs}ms`);
+  if (e.kind) bits.push(e.kind);
+  if (e.channel) bits.push(e.channel);
+  if (e.message) bits.push(e.message);
+  if (e.error) bits.push(e.error);
+  row.innerHTML = `<b>${bits.slice(0, 2).join(' ')}</b> ${bits.slice(2).map(escapeHtml).join(' · ')}`;
+  $('events').prepend(row);
+  while ($('events').children.length > 160) $('events').lastChild.remove();
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+function addStep(e) {
+  const card = document.createElement('div');
+  card.className = 'step';
+  card.dataset.turn = e.turn;
+
+  const hd = document.createElement('div');
+  hd.className = 'hd';
+  hd.innerHTML = `<b>step ${e.turn}</b><span class="spacer"></span><span class="ms"></span>`;
+  card.append(hd);
+
+  const code = document.createElement('pre');
+  code.className = 'code';
+  code.textContent = e.code || '';
+  card.append(code);
+  $('steps').append(card);
+}
+
+function finishStep(e) {
+  const card = $('steps').querySelector(`.step[data-turn="${e.turn}"]`);
+  if (!card) return;
+  card.classList.add(e.ok ? 'ok' : 'bad');
+  card.querySelector('.ms').textContent = `${e.durationMs}ms${e.error ? ' · error' : ''}`;
+  if (e.error) {
+    const err = document.createElement('pre');
+    err.className = 'err';
+    err.textContent = e.error;
+    card.append(err);
+  } else if (e.text) {
+    const out = document.createElement('pre');
+    out.className = 'out';
+    out.textContent = e.text;
+    card.append(out);
+  }
+  for (const img of e.imageData ?? []) addImage(img.url, img.caption);
+}
+
+function addImage(url, caption) {
+  const holder = $('shots');
+  const note = holder.querySelector('.hint');
+  if (note) note.remove();
+  const fig = document.createElement('figure');
+  const img = document.createElement('img');
+  img.src = url;
+  const cap = document.createElement('figcaption');
+  cap.textContent = caption || 'observation';
+  fig.append(img, cap);
+  holder.prepend(fig);
+}
+
+function renderGate(req) {
+  pending.set(req.id, req);
+  const el = document.createElement('div');
+  el.className = 'gate';
+  el.dataset.id = req.id;
+  el.innerHTML = `
+    <div class="risk">${escapeHtml(req.verdict.risk)} risk · ${escapeHtml(req.verdict.rule)}</div>
+    <div class="why">${escapeHtml(req.verdict.reason)}</div>
+    <div class="hint" style="margin-bottom:9px">
+      ${escapeHtml(req.action.name ?? req.action.node ?? req.action.kind)} ·
+      ${escapeHtml(req.action.channel ?? 'unknown')} channel · ${escapeHtml(req.action.via ?? '')}
+    </div>
+    <div class="row">
+      <button class="ok" data-allow="1">Allow once</button>
+      <button class="bad" data-allow="0">Deny</button>
+    </div>`;
+  el.querySelectorAll('button').forEach((b) => b.addEventListener('click', async () => {
+    const allowed = b.dataset.allow === '1';
+    await api('/api/approval', { id: req.id, allowed });
+    el.remove();
+    pending.delete(req.id);
+  }));
+  $('gates').prepend(el);
+}
+
+function handle(e) {
+  switch (e.type) {
+    case 'hello': applyState(e.state); break;
+    case 'run.queued':
+      $('steps').innerHTML = '';
+      $('events').innerHTML = '';
+      $('shots').innerHTML = '<p class="hint">Screenshots passed back with display() appear here.</p>';
+      $('gates').innerHTML = '';
+      lastRunSignature = '';
+      break;
+    case 'step.start': addStep(e); break;
+    case 'step.end': finishStep(e); break;
+    case 'approval.request': renderGate(e); break;
+    case 'model.final': {
+      const card = document.createElement('div');
+      card.className = 'step ok';
+      card.append(Object.assign(document.createElement('div'), { className: 'hd', innerHTML: '<b>final answer</b>' }));
+      const out = document.createElement('pre');
+      out.className = 'out';
+      out.textContent = e.text || '(empty)';
+      card.append(out);
+      $('steps').append(card);
+      break;
+    }
+    default: break;
+  }
+  if (e.type !== 'step.start' && e.type !== 'step.end' && e.type !== 'approval.request') logEvent(e);
+  if (e.type === 'run.start' || e.type === 'run.end' || e.type === 'run.finished') refreshState();
+}
+
+function applyState(s) {
+  state = s;
+  $('runScenario').disabled = s.running;
+  $('runTask').disabled = s.running;
+  $('cancel').disabled = !s.running;
+  $('status').textContent = s.running ? 'running' : 'idle';
+  $('conn').className = s.running ? 'dot busy' : 'dot live';
+  if ($('approvalMode').value !== s.approvalMode) $('approvalMode').value = s.approvalMode;
+
+  const sel = $('scenario');
+  if (sel.options.length !== Object.keys(s.scenarios ?? {}).length) {
+    sel.innerHTML = '';
+    for (const [key, v] of Object.entries(s.scenarios ?? {})) {
+      const o = document.createElement('option');
+      o.value = key;
+      o.textContent = v.label;
+      sel.append(o);
+    }
+  }
+  // `run.end` and `run.finished` both trigger a state refresh, so guard against rendering the
+  // summary card twice for the same run.
+  if (s.lastResult && !s.running) {
+    const signature = `${s.lastResult.stopReason}:${s.lastResult.durationMs}:${s.lastResult.steps.length}`;
+    if (signature !== lastRunSignature) {
+      lastRunSignature = signature;
+      const card = document.createElement('div');
+      card.className = 'step ok';
+      card.append(Object.assign(document.createElement('div'), {
+        className: 'hd',
+        innerHTML: `<b>run ${escapeHtml(s.lastResult.stopReason)}</b><span class="spacer"></span><span>${s.lastResult.durationMs}ms · ${s.lastResult.steps.length} steps</span>`,
+      }));
+      $('steps').append(card);
+    }
+  }
+}
+
+async function refreshState() {
+  try { applyState(await api('/api/state')); } catch { /* transient */ }
+  try { $('globals').textContent = JSON.stringify((await api('/api/globals')).globals); } catch { /* transient */ }
+}
+
+// ---------------------------------------------------------------- wiring
+
+$('runScenario').addEventListener('click', async () => {
+  await api('/api/start', { scenario: $('scenario').value });
+});
+$('runTask').addEventListener('click', async () => {
+  await api('/api/start', { task: $('task').value });
+});
+$('cancel').addEventListener('click', () => api('/api/cancel', {}));
+$('approvalMode').addEventListener('change', (e) => api('/api/mode', { approvalMode: e.target.value }));
+
+$('step').addEventListener('click', async () => {
+  const btn = $('step');
+  btn.disabled = true;
+  try {
+    const out = await api('/api/step', { code: $('code').value });
+    const pre = $('manualOut');
+    pre.style.display = 'block';
+    pre.textContent = (out.error ? `Error: ${out.error}\n\n` : '') + (out.text || '(no output)');
+    for (const img of out.images ?? []) addImage(img.url, img.caption);
+  } catch (err) {
+    $('manualOut').style.display = 'block';
+    $('manualOut').textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('snap').addEventListener('click', async () => {
+  $('code').value = `const snap = await page.snapshot({ filter: 'interactive' });\nlog(snap.text);\ndisplay(await page.screenshot(), 'viewport');`;
+  refreshAx();
+});
+
+$('code').value = `// Two channels, one program.
+const snap = await page.snapshot({ filter: 'interactive' });
+log(snap.text);
+
+// Canvas has no a11y node, so read it by pixels.
+const box = await page.evaluate('(() => { const r = document.getElementById("chart").getBoundingClientRect(); return [r.x, r.y, r.x + r.width, r.y + r.height]; })()');
+const zoom = await page.zoom(box);
+display(zoom, 'canvas chart via zoom');`;
+
+connect();
+refreshState();
+
+// Keep the accessibility tree panel populated so the semantic channel is always visible next to
+// the pixel channel, which is the whole point of showing both side by side.
+async function refreshAx() {
+  try {
+    const listing = await fetch('/api/snapshot?filter=interactive').then((r) => r.json());
+    $('ax').textContent = listing.text || '(no accessible nodes)';
+  } catch { $('ax').textContent = '(snapshot unavailable)'; }
+}
+refreshAx();
+setInterval(refreshAx, 4000);
+</script>
+</body>
+</html>

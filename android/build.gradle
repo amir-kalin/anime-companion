@@ -1,0 +1,112 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+/**
+ * Fallback mirror of Google's Maven repository.
+ *
+ * The official repository is unreachable from this machine — every request
+ * to dl.google.com/dl/android/maven2 returns 404, including the SDK's own
+ * repository manifest — and the AndroidX artifacts are not on Maven Central,
+ * so the build could not resolve them from anywhere.
+ *
+ * The mirror is listed AFTER google(), so the official repository is always
+ * tried first and is used whenever it is reachable. The URL comes from
+ * `googleMavenMirror` in gradle.properties; setting it to an empty value
+ * removes the fallback.
+ *
+ * The property is read separately in each block on purpose: a `buildscript
+ * { }` block is evaluated BEFORE the body of the script, so a variable
+ * defined in the body is not visible inside it. Referencing one there
+ * failed with "Could not get unknown property 'googleMirror'".
+ */
+buildscript {
+
+    repositories {
+        google {
+            // AndroidX is pinned to the mirror while it is configured.
+            //
+            // Gradle caches WHICH repository a module's metadata came from,
+            // and the AndroidX metadata already in this machine's cache is
+            // attributed to the official repository. The POMs were found
+            // there, and the AARs were then requested from the same
+            // repository — which cannot serve them, because every request
+            // to it 404s. Excluding the group from `google()` means the
+            // attribution cannot happen at all, and the mirror serves the
+            // whole group.
+            if (project.hasProperty('googleMavenMirror')
+                && !project.property('googleMavenMirror').toString().trim().isEmpty()) {
+                content { excludeGroupByRegex 'androidx\\..*' }
+            }
+        }
+        def mirror = (project.hasProperty('googleMavenMirror')
+            ? project.property('googleMavenMirror').toString().trim()
+            : '')
+        if (mirror) {
+            maven { url mirror }
+        }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+
+        // The generated file also listed `com.google.gms:google-services`.
+        // This app has no Firebase, no Analytics and no Crashlytics, and the
+        // plugin was never applied — but it was still on the buildscript
+        // classpath, so the build had to RESOLVE it before it could do
+        // anything at all. It failed there: that artifact is not published
+        // to the repositories this project uses. Removing it costs nothing,
+        // because it was doing nothing.
+    }
+}
+
+apply from: "variables.gradle"
+
+allprojects {
+    repositories {
+        google {
+            if (project.hasProperty('googleMavenMirror')
+                && !project.property('googleMavenMirror').toString().trim().isEmpty()) {
+                content { excludeGroupByRegex 'androidx\\..*' }
+            }
+        }
+        def mirror = (project.hasProperty('googleMavenMirror')
+            ? project.property('googleMavenMirror').toString().trim()
+            : '')
+        if (mirror) {
+            maven { url mirror }
+        }
+        mavenCentral()
+    }
+}
+
+/**
+ * Build tools 36.0.0, for every module.
+ *
+ * AGP 8.13 defaults to build tools 35.0.0, which is not installed on this
+ * machine and could not be downloaded: the SDK's own repository manifest
+ * fetch (repository2-3.xml) failed, so the SDK manager could not offer it.
+ * The machine has 36.0.0 and 37.0.0, and 36.0.0 is the one that matches
+ * compileSdk 36.
+ *
+ * It has to be set for EVERY module, not just the app: the failure moved
+ * from `:app` to `:capacitor-android` when only the app was pinned, because
+ * the library module has its own `android { }` block with its own default.
+ */
+subprojects {
+    plugins.withId("com.android.application") {
+        android {
+            buildToolsVersion = "36.0.0"
+        }
+    }
+    plugins.withId("com.android.library") {
+        android {
+            buildToolsVersion = "36.0.0"
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

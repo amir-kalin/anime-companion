@@ -1,0 +1,9 @@
+humanui harness listening on http://127.0.0.1:5180
+  operator console  http://127.0.0.1:5180/
+  demo target       http://127.0.0.1:5180/target.html
+  allow hosts       youtube.com, google.com, gstatic.com, googleapis.com, googleusercontent.com, googlevideo.com, ytimg.com, ggpht.com, googletagmanager.com, doubleclick.net, segment.io, cloudflare.com, jsdelivr.net, unpkg.com
+  start url         https://www.youtube.com/results?search_query=big+buck+bunny
+  live model        gpt-6-astra via http://127.0.0.1:1234/v1
+
+Drive it with:  node bin/humanui.mjs act --code "log(await page.title())"
+Scenarios run with no model configured. Ctrl+C to stop.

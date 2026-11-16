@@ -1,0 +1,4 @@
+# Generated screenshots from tools/shoot.mjs
+shots/
+# Local run logs
+*.log

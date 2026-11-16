@@ -1,0 +1,42 @@
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Her memory of you — private, and machine-local
+data/
+
+# Dependencies and build outputs
+node_modules/
+dist/
+build/
+release/
+logs/
+*.log
+*.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+.venv/
+.venv-*/
+venv/
+ENV/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Android (Capacitor) build artifacts
+android/app/build/
+android/build/
+android/.gradle/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/capacitor-cordova-android-plugins/
+android/local.properties
+android/app/release/
