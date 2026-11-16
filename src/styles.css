@@ -1,633 +1,423 @@
+/* ==========================================================================
+   3D Anime AI Companion  -  Modern Immersive UI (antislop compliant)
+   ========================================================================== */
+
 :root {
   --bg: #090b12;
-  --panel: rgba(13, 16, 26, 0.9);
-  --card: rgba(22, 27, 44, 0.75);
-  --line: rgba(0, 240, 255, 0.16);
-  --line-pink: rgba(255, 42, 133, 0.28);
-  --text: #f0f4fc;
-  --dim: #8b99b5;
-  --accent: #00f0ff;
-  --neon-pink: #ff2a85;
-  --neon-cyan: #00f0ff;
-  --neon-green: #05ffa1;
-  --neon-amber: #ffb703;
-  --neon-purple: #9d4edd;
-  --ok: #05ffa1;
-  --err: #ff3366;
-  --bored: #ffb703;
-  --talking: #00f0ff;
-  --idle: #05ffa1;
+  --panel-bg: rgba(14, 18, 30, 0.78);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --panel-border-glow: rgba(0, 240, 255, 0.35);
+  --card-bg: rgba(20, 26, 42, 0.75);
+  --card-border: rgba(255, 255, 255, 0.08);
 
-  /**
-   * The app's height.
-   *
-   * `100vh` on a phone is the height of the viewport with the browser chrome
-   * HIDDEN, so the layout is taller than the screen and the bottom of the
-   * chat input sits under the address bar. `dvh` is the dynamic height, which
-   * follows the chrome as it slides away — that is the correct default.
-   *
-   * JavaScript overrides this with the `visualViewport` height while the
-   * on-screen keyboard is open, which is the one case `dvh` does not cover.
-   */
+  --text-main: #f1f5f9;
+  --text-dim: #94a3b8;
+  --text-subtle: #64748b;
+
+  --accent-cyan: #00f0ff;
+  --accent-pink: #ff2a85;
+  --accent-purple: #9d4edd;
+  --accent-amber: #f59e0b;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
   --app-h: 100vh;
 }
 
-/* `dvh` where it is supported; the 100vh above stays as the fallback. */
 @supports (height: 100dvh) {
   :root { --app-h: 100dvh; }
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 html, body {
   margin: 0;
+  padding: 0;
   height: 100%;
+  width: 100%;
   background: var(--bg);
-  color: var(--text);
-  font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--text-main);
+  font: 14px/1.5 var(--font-sans);
   overflow: hidden;
-  /* Stop the whole page from rubber-banding on a touch drag over the canvas.
-     The canvas handles its own gestures; everything else is chrome. */
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
 }
 
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+div[role="slider"]:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Full Viewport App Shell
+   ========================================================================== */
 .app {
-  display: grid;
-  grid-template-columns: 1fr 400px;
-  /**
-   * Fixed, and sized to the VISUAL viewport.
-   *
-   * `position: fixed` is what makes the keyboard work. When the on-screen
-   * keyboard opens, the browser shrinks the visual viewport and tries to
-   * scroll the layout viewport to reveal the focused input. A document that
-   * cannot scroll (html/body are `overflow: hidden`) cannot be scrolled, so
-   * the app stays anchored to the top of the layout viewport — which is
-   * exactly the top of the visible area — and only its HEIGHT needs to change.
-   * JavaScript sets that height from `visualViewport.height`.
-   */
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  inset: 0;
+  width: 100vw;
   height: var(--app-h);
-  /* Safe areas: a notched phone cuts into the top edge and the gesture bar
-     into the bottom one. Without this the framing buttons sit under the
-     notch and the input under the home bar. */
-  padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-}
-
-/* Fullscreen: the panel collapses away and the canvas takes the whole window.
-   Both the requestFullscreen API and this class are applied, because the API
-   can be unavailable or blocked while the class alone still gives the
-   "just her, no HUD" view.
-
-   The grid switch is deliberately NOT transitioned. Animating
-   `grid-template-columns` is unreliable (it can be left stuck part-way, which
-   would keep the canvas at the wrong size), so the layout snaps and only the
-   panel's fade is animated - the important half is always correct. */
-.app.fs {
-  grid-template-columns: 1fr 0px;
-}
-.app.fs .panel {
-  opacity: 0;
-  transform: translateX(24px);
-  pointer-events: none;
   overflow: hidden;
-  border-left-width: 0;
+  display: block;
 }
-.app.fs .log,
-.app.fs .say { display: none; }
 
-/* ------------------------------------------------------------------ zoombar */
-.zoombar {
+.viewport {
   position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 12;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(6px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 45%, #151b2e 0%, #07090e 100%);
+  overflow: hidden;
+}
+
+#stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
   user-select: none;
-  cursor: ns-resize;
 }
-.zoombar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.zoombar-track {
-  position: relative;
-  width: 6px;
-  height: 132px;
-  border-radius: 3px;
-  background: rgba(28, 28, 30, 0.14);
-}
-.zoombar-thumb {
+/* ==========================================================================
+   Floating Top Navigation Dock
+   ========================================================================== */
+.top-dock {
   position: absolute;
-  left: 50%;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #1c1c1e;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  transform: translate(-50%, -50%);
-}
-.zoombar:not(.dragging) .zoombar-thumb { transition: top 90ms ease-out; }
-
-.zoombar-zoom {
-  font-size: 13px;
-  line-height: 1;
-  color: #1c1c1e;
-  opacity: 0.5;
-}
-.zoombar-label {
-  font-size: 9.5px;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: #1c1c1e;
-  opacity: 0.65;
-  min-width: 34px;
-  text-align: center;
-}
-
-/* Dictation button, duplicated for fullscreen. Only the fullscreen copy is
-   shown normally, so the two never sit on top of each other. */
-.mic-fs {
-  position: absolute;
-  left: 50%;
-  /* Clears the .fs-hint pill, which sits at the same centre-bottom position and
-     would otherwise cover the lower half of the button and steal its hover. */
-  bottom: 64px;
-  transform: translateX(-50%);
-  z-index: 14;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.14);
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
-  cursor: pointer;
-  display: none;
-  place-items: center;
-  padding: 0;
-  transition: border-color 140ms ease, background 140ms ease;
-}
-.app.fs .mic-fs { display: grid; }
-.mic-fs:hover { border-color: var(--accent); }
-.mic-fs.rec {
-  border-color: var(--bored);
-  background: rgba(255, 196, 107, 0.22);
-}
-.mic-fs.rec .mic-dot { background: var(--bored); }
-
-/* ------------------------------------------------------------------- toggles */
-.fs-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(14, 16, 22, 0.72);
-  border: 1px solid var(--line);
-  color: var(--dim);
-  font-size: 11.5px;
-  opacity: 0;
-  transition: opacity 260ms ease;
-  pointer-events: none;
-  white-space: nowrap;
-}
-.app.fs .fs-hint { opacity: 1; }
-.fs-hint kbd {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 1px 5px;
-  font: inherit;
-  font-size: 10.5px;
-  color: var(--text);
-}
-
-.fs-bar {
-  position: fixed;
-  top: calc(12px + env(safe-area-inset-top));
-  right: calc(412px + env(safe-area-inset-right));
-  z-index: 20;
-  display: flex;
-  gap: 8px;
-  transition: right 220ms ease;
-}
-/* The fullscreen class lives on #app (main.js toggles it there), so the
-   `body.fs` selector this replaced could never match and the bar stayed
-   parked at the desktop offset with the panel collapsed underneath it. */
-body.fs .fs-bar { right: calc(12px + env(safe-area-inset-right)); }
-
-.fs-toggle {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  background: rgba(22, 26, 36, 0.9);
-  color: var(--dim);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 15px;
-  line-height: 1;
-  transition: color 120ms ease, border-color 120ms ease;
-}
-.fs-toggle:hover { color: var(--text); border-color: var(--accent); }
-.fs-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-
-/* The real mobile layout lives at the end of this file. */
-
-.head-row {
+  top: calc(14px + env(safe-area-inset-top));
+  left: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  z-index: 30;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-/* ---------------------------------------------------------------- viewport */
-.viewport { position: relative; overflow: hidden; background: radial-gradient(circle at 50% 40%, #151928 0%, #08090e 100%); }
-#stage { display: block; width: 100%; height: 100%; }
+.top-dock > * {
+  pointer-events: auto;
+}
 
-/* Floating Cyber Status Chip in 3D Viewport */
-.cyber-status-chip {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  z-index: 25;
+.top-dock-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 9999px;
-  background: rgba(10, 13, 24, 0.75);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 240, 255, 0.1);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #e2e8f0;
-  pointer-events: none;
-  user-select: none;
-  transition: all 0.25s ease;
-}
-
-.status-pulse-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #05ffa1;
-  box-shadow: 0 0 8px #05ffa1;
-  transition: all 0.25s ease;
-}
-
-/* Status variants */
-.cyber-status-chip.thinking { border-color: rgba(0, 240, 255, 0.6); color: #00f0ff; }
-.cyber-status-chip.thinking .status-pulse-dot {
-  background: #00f0ff;
-  box-shadow: 0 0 10px #00f0ff;
-  animation: cyber-pulse 1s infinite ease-in-out;
-}
-
-.cyber-status-chip.working { border-color: rgba(255, 183, 3, 0.6); color: #ffb703; }
-.cyber-status-chip.working .status-pulse-dot {
-  background: #ffb703;
-  box-shadow: 0 0 10px #ffb703;
-  animation: cyber-pulse 0.7s infinite ease-in-out;
-}
-
-.cyber-status-chip.speaking { border-color: rgba(255, 42, 133, 0.7); color: #ff66b2; }
-.cyber-status-chip.speaking .status-pulse-dot {
-  background: #ff2a85;
-  box-shadow: 0 0 12px #ff2a85;
-  animation: cyber-pulse 0.5s infinite ease-in-out;
-}
-
-.cyber-status-chip.listening { border-color: rgba(157, 78, 221, 0.6); color: #c77dff; }
-.cyber-status-chip.listening .status-pulse-dot {
-  background: #9d4edd;
-  box-shadow: 0 0 10px #9d4edd;
-  animation: cyber-pulse 0.6s infinite ease-in-out;
-}
-
-.cyber-status-chip.ready { border-color: rgba(5, 255, 161, 0.4); color: #e2e8f0; }
-.cyber-status-chip.ready .status-pulse-dot {
-  background: #05ffa1;
-  box-shadow: 0 0 8px #05ffa1;
-}
-
-.cyber-status-chip.error { border-color: rgba(255, 51, 102, 0.7); color: #ff3366; }
-.cyber-status-chip.error .status-pulse-dot {
-  background: #ff3366;
-  box-shadow: 0 0 10px #ff3366;
-}
-
-@keyframes cyber-pulse {
-  0%, 100% { opacity: 0.5; transform: scale(0.85); }
-  50% { opacity: 1; transform: scale(1.3); }
-}
-
-/* ------------------------------------------------------------------- panel */
-.panel {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
-  padding: 16px;
-  background: var(--panel);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-left: 1px solid rgba(0, 240, 255, 0.18);
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-  transition: opacity 200ms ease, transform 200ms ease;
 }
 
 .brand-group {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-.cyber-title {
+.brand-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 1px;
-  background: linear-gradient(135deg, #00f0ff 0%, #ff2a85 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.8px;
+  color: #fff;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.cyber-badge {
+.brand-tag {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.8px;
-  padding: 2px 6px;
-  border-radius: 4px;
+  color: var(--accent-cyan);
   background: rgba(0, 240, 255, 0.12);
-  border: 1px solid rgba(0, 240, 255, 0.35);
-  color: #00f0ff;
-  -webkit-text-fill-color: #00f0ff;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 .affection-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-size: 11px;
   font-weight: 700;
   color: #ff66b2;
   background: rgba(255, 42, 133, 0.12);
   border: 1px solid rgba(255, 42, 133, 0.35);
   border-radius: 9999px;
-  padding: 2px 10px;
-  width: fit-content;
-  text-shadow: 0 0 8px rgba(255, 42, 133, 0.4);
+  padding: 2px 9px;
   user-select: none;
 }
 
 .heart-icon {
-  color: #ff2a85;
+  color: var(--accent-pink);
   animation: pulse-heart 1.5s infinite ease-in-out;
 }
 
 @keyframes pulse-heart {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.3); }
+  50% { transform: scale(1.25); }
 }
 
-.status-bar-wrapper {
-  position: relative;
+/* Center status pill */
+.top-dock-center {
+  flex: 0 1 auto;
+  max-width: 280px;
+}
+
+.header-status-pill {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(0, 240, 255, 0.04);
-  border: 1px solid rgba(0, 240, 255, 0.18);
-  margin-top: 4px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  padding: 6px 16px;
+  border-radius: 9999px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.25s ease;
 }
 
-.status-pulse-ring {
+.status-indicator-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #05ffa1;
-  box-shadow: 0 0 6px #05ffa1;
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+  flex-shrink: 0;
+  transition: all 0.25s ease;
 }
 
-.status {
-  margin: 0;
-  font-size: 11.5px;
-  color: var(--dim);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Status variants */
+.header-status-pill.thinking { border-color: rgba(0, 240, 255, 0.5); color: var(--accent-cyan); }
+.header-status-pill.thinking .status-indicator-dot {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+  animation: dot-pulse 1s infinite ease-in-out;
 }
 
-.status.thinking { color: #00f0ff; text-shadow: 0 0 6px rgba(0, 240, 255, 0.4); }
-.status.working { color: #ffb703; text-shadow: 0 0 6px rgba(255, 183, 3, 0.4); }
-.status.speaking { color: #ff2a85; text-shadow: 0 0 6px rgba(255, 42, 133, 0.4); }
-.status.listening { color: #9d4edd; text-shadow: 0 0 6px rgba(157, 78, 221, 0.4); }
-.status.ready, .status.ok { color: #05ffa1; }
-.status.error { color: #ff3366; }
-
-/* Quick Actions Container */
-.quick-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 2px;
-  margin-bottom: 2px;
+.header-status-pill.working { border-color: rgba(245, 158, 11, 0.5); color: var(--accent-amber); }
+.header-status-pill.working .status-indicator-dot {
+  background: var(--accent-amber);
+  box-shadow: 0 0 8px var(--accent-amber);
+  animation: dot-pulse 0.7s infinite ease-in-out;
 }
 
-.quick-chip {
-  flex: 1 1 calc(25% - 6px);
-  min-width: 70px;
-  background: rgba(22, 28, 46, 0.65);
-  border: 1px solid rgba(0, 240, 255, 0.2);
-  border-radius: 8px;
-  color: #c4d7ed;
-  padding: 6px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+.header-status-pill.speaking { border-color: rgba(255, 42, 133, 0.6); color: #ff66b2; }
+.header-status-pill.speaking .status-indicator-dot {
+  background: var(--accent-pink);
+  box-shadow: 0 0 10px var(--accent-pink);
+  animation: dot-pulse 0.5s infinite ease-in-out;
+}
+
+.header-status-pill.listening { border-color: rgba(157, 78, 221, 0.6); color: #c77dff; }
+.header-status-pill.listening .status-indicator-dot {
+  background: var(--accent-purple);
+  box-shadow: 0 0 8px var(--accent-purple);
+  animation: dot-pulse 0.6s infinite ease-in-out;
+}
+
+.header-status-pill.ready { border-color: rgba(16, 185, 129, 0.4); color: var(--text-main); }
+.header-status-pill.ready .status-indicator-dot { background: var(--accent-green); }
+
+.header-status-pill.error { border-color: rgba(239, 68, 68, 0.6); color: var(--accent-red); }
+.header-status-pill.error .status-indicator-dot { background: var(--accent-red); }
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+/* Action dock buttons */
+.top-dock-right {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
 }
 
-.quick-chip:hover {
-  background: rgba(0, 240, 255, 0.15);
-  border-color: #00f0ff;
-  color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 240, 255, 0.25);
-}
-
-.quick-chip:active {
-  transform: translateY(1px);
-}
-
-/* --------------------------------------------------------------------- say */
-.say {
+.dock-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 2px;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  padding: 4px 6px;
+  border-radius: 9999px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-.say input {
-  flex: 1;
-  min-width: 0;
-  background: rgba(11, 15, 26, 0.85);
-  border: 1px solid rgba(0, 240, 255, 0.25);
-  border-radius: 8px;
-  color: #f0f4fc;
-  padding: 10px 12px;
-  font: inherit;
-  font-size: 13px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+.dock-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 11px;
+  border-radius: 9999px;
+  transition: all 0.15s ease;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.say input:focus {
-  outline: none;
-  border-color: #00f0ff;
-  box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
-}
-
-.say button#send {
-  background: linear-gradient(135deg, #ff2a85 0%, #ff0077 100%);
+.dock-btn:hover {
   color: #fff;
-  border: 0;
-  border-radius: 8px;
-  padding: 10px 16px;
-  font: inherit;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dock-btn[aria-pressed="true"] {
+  color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.14);
+}
+
+.dock-btn.accent {
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  background: rgba(0, 240, 255, 0.06);
+}
+
+.dock-btn.accent:hover {
+  background: rgba(0, 240, 255, 0.18);
+  border-color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   Floating Chat Stream Overlay
+   ========================================================================== */
+.chat-stream-dock {
+  position: absolute;
+  left: 20px;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  width: 380px;
+  max-width: calc(100vw - 40px);
+  max-height: 38vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 25;
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chat-stream-dock.collapsed {
+  max-height: 38px;
+  overflow: hidden;
+}
+
+.chat-stream-dock.collapsed .log {
+  display: none;
+}
+
+.chat-stream-header {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: rgba(14, 18, 30, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border);
+  border-bottom: none;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  font-size: 11px;
   font-weight: 700;
-  font-size: 12.5px;
   letter-spacing: 0.5px;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(255, 42, 133, 0.35);
-  transition: all 0.2s ease;
+  color: var(--text-subtle);
+  text-transform: uppercase;
 }
 
-.say button#send:hover {
-  filter: brightness(1.15);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(255, 42, 133, 0.5);
+.chat-stream-min-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 4px;
 }
 
-/* Dictation button */
-.mic {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  background: rgba(20, 25, 40, 0.85);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  transition: all 0.2s ease;
+.chat-stream-min-btn:hover {
+  color: #fff;
 }
 
-.mic-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--dim);
-  transition: background 120ms ease, transform 120ms ease;
-  transform: scale(var(--level, 1));
-}
-
-.mic:hover {
-  border-color: #00f0ff;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
-}
-
-.mic.rec {
-  border-color: #ff2a85;
-  background: rgba(255, 42, 133, 0.2);
-  box-shadow: 0 0 16px rgba(255, 42, 133, 0.5);
-}
-
-.mic.rec .mic-dot {
-  background: #ff2a85;
-  animation: pulse 1.1s ease-in-out infinite;
-}
-
-/* --------------------------------------------------------------------- log */
 .log {
+  pointer-events: auto;
   flex: 1 1 auto;
-  min-height: 150px;
-  max-height: 250px;
   overflow-y: auto;
-  background: rgba(9, 12, 20, 0.75);
-  border: 1px solid rgba(0, 240, 255, 0.16);
-  border-radius: 10px;
-  padding: 10px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;
+  background: rgba(10, 13, 24, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
-/* Chat Cards */
 .chat-card {
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   font-size: 12.5px;
-  line-height: 1.4;
-  animation: slideInCard 0.2s ease-out;
+  line-height: 1.45;
+  animation: card-appear 0.2s ease-out;
 }
 
-@keyframes slideInCard {
+@keyframes card-appear {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .chat-card.you {
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(0, 240, 255, 0.02));
-  border: 1px solid rgba(0, 240, 255, 0.25);
-  border-left: 3px solid #00f0ff;
+  background: rgba(0, 240, 255, 0.06);
+  border: 1px solid rgba(0, 240, 255, 0.22);
+  border-left: 3px solid var(--accent-cyan);
 }
 
 .chat-card.orb {
-  background: linear-gradient(135deg, rgba(255, 42, 133, 0.12), rgba(157, 78, 221, 0.05));
-  border: 1px solid rgba(255, 42, 133, 0.35);
-  border-left: 3px solid #ff2a85;
-  box-shadow: 0 4px 16px rgba(255, 42, 133, 0.12);
+  background: rgba(255, 42, 133, 0.08);
+  border: 1px solid rgba(255, 42, 133, 0.25);
+  border-left: 3px solid var(--accent-pink);
 }
 
 .chat-card.sys {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-left: 3px solid #718096;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-left: 3px solid var(--text-subtle);
   font-size: 11px;
-  color: #a0aec0;
+  color: var(--text-dim);
 }
 
 .chat-meta {
@@ -635,17 +425,18 @@ body.fs .fs-bar { right: calc(12px + env(safe-area-inset-right)); }
   font-weight: 800;
   letter-spacing: 0.8px;
   text-transform: uppercase;
+  font-family: var(--font-mono);
 }
 
-.chat-card.you .chat-meta { color: #00f0ff; text-shadow: 0 0 6px rgba(0, 240, 255, 0.4); }
-.chat-card.orb .chat-meta { color: #ff2a85; text-shadow: 0 0 6px rgba(255, 42, 133, 0.4); }
-.chat-card.sys .chat-meta { color: #718096; }
+.chat-card.you .chat-meta { color: var(--accent-cyan); }
+.chat-card.orb .chat-meta { color: var(--accent-pink); }
+.chat-card.sys .chat-meta { color: var(--text-subtle); }
 
 .anim-pill {
   display: inline-block;
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 9999px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -655,48 +446,245 @@ body.fs .fs-bar { right: calc(12px + env(safe-area-inset-right)); }
 
 .anim-pill.anim-talking {
   background: rgba(0, 240, 255, 0.15);
-  border: 1px solid #00f0ff;
-  color: #00f0ff;
-  text-shadow: 0 0 6px #00f0ff;
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
 }
 
 .anim-pill.anim-kiss {
   background: rgba(255, 42, 133, 0.18);
-  border: 1px solid #ff2a85;
+  border: 1px solid var(--accent-pink);
   color: #ff66b2;
-  text-shadow: 0 0 8px #ff2a85;
 }
 
 .anim-pill.anim-bored {
-  background: rgba(255, 183, 3, 0.15);
-  border: 1px solid #ffb703;
-  color: #ffb703;
-  text-shadow: 0 0 6px #ffb703;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--accent-amber);
+  color: var(--accent-amber);
 }
 
 .anim-pill.anim-sit, .anim-pill.anim-sittalk {
   background: rgba(157, 78, 221, 0.15);
-  border: 1px solid #9d4edd;
+  border: 1px solid var(--accent-purple);
   color: #c77dff;
-  text-shadow: 0 0 6px #9d4edd;
 }
 
-/* --------------------------------------------------------------------- hud */
-.hud {
+/* ==========================================================================
+   Centered Bottom Command Capsule
+   ========================================================================== */
+.bottom-command-capsule {
+  position: absolute;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 620px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
+  z-index: 30;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.bottom-command-capsule > * {
+  pointer-events: auto;
+}
+
+/* Quick Action Chips */
+.quick-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quick-chip {
+  background: rgba(14, 18, 30, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  border-radius: 9999px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.quick-chip:hover {
+  color: #fff;
+  border-color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Say Input Bar */
+.say-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--panel-border-glow);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 16px rgba(0, 240, 255, 0.1);
+  border-radius: 9999px;
+  padding: 6px 8px 6px 10px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.say-bar:focus-within {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.25);
+}
+
+.mic-btn {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.mic-btn:hover {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.15);
+}
+
+.mic-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: all 0.15s ease;
+  transform: scale(var(--level, 1));
+}
+
+.mic-btn.rec {
+  border-color: var(--accent-pink);
+  background: rgba(255, 42, 133, 0.2);
+  box-shadow: 0 0 12px rgba(255, 42, 133, 0.5);
+}
+
+.mic-btn.rec .mic-dot {
+  background: var(--accent-pink);
+  animation: dot-pulse 1s infinite ease-in-out;
+}
+
+.say-input {
   flex: 1 1 auto;
-  /* Without a floor the HUD collapses to a sliver once the log and the header
-     are accounted for, and the last card ends up clipped behind the input. */
-  min-height: 140px;
-  padding-right: 2px;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-main);
+  font-size: 13.5px;
+  padding: 6px 4px;
+}
+
+.say-input::placeholder {
+  color: var(--text-subtle);
+  font-size: 12.5px;
+}
+
+.send-btn {
+  background: linear-gradient(135deg, var(--accent-pink), #e11d48);
+  color: #fff;
+  border: none;
+  border-radius: 9999px;
+  padding: 8px 18px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  box-shadow: 0 2px 10px rgba(255, 42, 133, 0.35);
+  transition: all 0.15s ease;
+}
+
+.send-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Telemetry Slide-Out Drawer
+   ========================================================================== */
+.hud-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  max-width: calc(100vw - 20px);
+  height: 100vh;
+  background: rgba(13, 17, 28, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid var(--panel-border);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.hud-drawer.open {
+  transform: translateX(0);
+}
+
+.hud-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 8px;
+}
+
+.hud-drawer-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.hud-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  padding: 4px 8px;
+}
+
+.hud-close-btn:hover {
+  color: #fff;
+}
+
+.hud {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: thin;
 }
 
 .hud-card {
-  background: var(--card);
-  border: 1px solid var(--line);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 8px;
   padding: 10px;
 }
@@ -705,34 +693,57 @@ body.fs .fs-bar { right: calc(12px + env(safe-area-inset-right)); }
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.9px;
-  color: var(--dim);
+  color: var(--text-subtle);
   margin-bottom: 6px;
 }
 
-.hud-state { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-.hud-state-name { font-size: 20px; font-weight: 700; color: var(--idle); }
-.hud-state-name[data-state="talking"] { color: var(--talking); }
-.hud-state-name[data-state="bored"] { color: var(--bored); }
-.hud-state-prev { font-size: 11px; color: var(--dim); }
+.hud-state {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.hud-state-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.hud-state-prev {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
 
 .hud-row {
   display: flex;
   justify-content: space-between;
   gap: 8px;
   font-size: 11.5px;
-  color: var(--dim);
+  color: var(--text-dim);
   margin-top: 3px;
 }
-.hud-row b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.hud-row b {
+  color: var(--text-main);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 
 .hud-meter {
   height: 5px;
-  background: #0c0e14;
+  background: rgba(0, 0, 0, 0.4);
   border-radius: 3px;
   overflow: hidden;
   margin-top: 4px;
 }
-.hud-meter i { display: block; height: 100%; background: var(--accent); transition: width 60ms linear; }
+
+.hud-meter i {
+  display: block;
+  height: 100%;
+  background: var(--accent-cyan);
+  transition: width 60ms linear;
+}
 
 .hud-fade, .hud-viseme {
   display: grid;
@@ -740,482 +751,241 @@ body.fs .fs-bar { right: calc(12px + env(safe-area-inset-right)); }
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: var(--dim);
+  color: var(--text-dim);
   margin-top: 3px;
 }
+
 .hud-viseme { grid-template-columns: 34px 1fr; }
 .hud-viseme .hud-meter, .hud-viseme i { grid-column: 2; }
 .hud-viseme i {
   display: block;
   height: 100%;
-  /* Explicit 0 so an untouched meter reads empty. Without it the bar is
-     `width: auto` as a block in a grid cell and renders FULL, which looks like
-     every viseme is permanently active. */
   width: 0;
-  background: var(--talking);
-}
-.hud-fade b { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
-
-.hud-meters { margin-top: 6px; }
-
-/* --------------------------------------------------------------------- say */
-.say { display: flex; gap: 8px; }
-
-.say input {
-  flex: 1;
-  min-width: 0;
-  background: #0c0e14;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--text);
-  padding: 9px 10px;
-  font: inherit;
-  font-size: 13px;
-}
-.say input:focus { outline: none; border-color: var(--accent); }
-
-.say button {
-  background: var(--accent);
-  color: #06202c;
-  border: 0;
-  border-radius: 6px;
-  padding: 9px 14px;
-  font: inherit;
-  font-weight: 700;
-  font-size: 13px;
-  cursor: pointer;
-}
-.say button:hover { filter: brightness(1.1); }
-
-/* Dictation button. --level is driven live from the mic analyser so the ring
-   pulses with your voice. */
-.mic {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  background: var(--card);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  padding: 0;
-}
-.mic-dot {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--dim);
-  transition: background 120ms ease, transform 120ms ease;
-  transform: scale(var(--level, 1));
-}
-.mic:hover { border-color: var(--accent); }
-.mic.rec {
-  border-color: var(--bored);
-  background: rgba(255, 196, 107, 0.12);
-}
-.mic.rec .mic-dot {
-  background: var(--bored);
-  animation: pulse 1.1s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.45); opacity: 0.7; }
+  background: var(--accent-cyan);
 }
 
-/* --------------------------------------------------------------------- log */
-.log {
-  flex: 0 0 auto;
-  height: 104px;
-  overflow-y: auto;
-  background: #0c0e14;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px;
-  font-size: 11.5px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.log-line { color: var(--dim); word-break: break-word; }
-.log-line.you { color: var(--accent); }
-.log-line.orb { color: var(--text); }
-.log-line.state { color: var(--bored); font-family: ui-monospace, Consolas, monospace; }
-.log-line.sys { color: var(--dim); font-style: italic; }
-.log-line.err { color: var(--err); }
-
-/* ------------------------------------------------------------------ legend */
 .legend {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   font-size: 11px;
-  color: var(--dim);
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
-}
-.legend b { color: var(--text); }
-
-@media (max-width: 900px) {
-  .app { grid-template-columns: 1fr; grid-template-rows: 55vh 45vh; }
-  .panel { border-left: 0; border-top: 1px solid var(--line); }
+  color: var(--text-subtle);
+  border-top: 1px solid var(--card-border);
+  padding-top: 8px;
 }
 
-/* ==================================================================
-   MOBILE
-   ==================================================================
-   Everything below targets a phone held in one hand. The desktop layout is
-   a 400px side panel next to the canvas; on a 360px-wide screen that panel
-   would either squeeze the canvas to nothing or push her off-screen, so
-   the phone layout stacks instead: she fills the top, the chat sits under
-   her, and the debug telemetry collapses out of the way.
-   ================================================================== */
+.state-tag {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-right: 4px;
+}
 
-/* The canvas owns its gestures. Without this the browser claims the drag
-   for page scrolling and fires `pointercancel` mid-stroke, which kills
-   both the orbit and the petting. */
-#stage {
-  touch-action: none;
-  -webkit-user-select: none;
+.state-tag.idle { color: var(--accent-green); background: rgba(16, 185, 129, 0.15); }
+.state-tag.talking { color: var(--accent-cyan); background: rgba(0, 240, 255, 0.15); }
+.state-tag.bored { color: var(--accent-amber); background: rgba(245, 158, 11, 0.15); }
+
+/* ==========================================================================
+   Floating Cyber Status Chip (3D Viewport)
+   ========================================================================== */
+.cyber-status-chip {
+  position: absolute;
+  top: 72px;
+  left: 20px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: rgba(10, 13, 24, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  pointer-events: none;
   user-select: none;
-  /* Long-press on a canvas in Android Chrome selects text or offers an
-     image menu; both interrupt a stroke. */
-  -webkit-touch-callout: none;
+  transition: all 0.2s ease;
 }
 
-@media (max-width: 900px), (pointer: coarse) {
-  /* Stack: she takes everything above the chat, the chat takes what it
-     needs. `minmax(0, 1fr)` on the canvas row is what lets the canvas
-     actually shrink — the default `1fr` has an `auto` minimum and refuses
-     to go below its content. */
-  .app {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto;
-  }
-  .app.fs {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) 0;
-  }
-  .app.fs .panel { display: none; }
-
-  .panel {
-    border-left: 0;
-    border-top: 1px solid var(--line);
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-    gap: 8px;
-    /* The panel is now a bottom sheet, so its content should never be
-       taller than the screen. The log scrolls inside it. */
-    max-height: 62vh;
-  }
-
-  .panel h1 { font-size: 15px; }
-  .legend { display: none; }
-
-  /* The HUD is telemetry — meters, cross-fade weights, gaze angles. It is
-     the largest block in the panel and the least useful thing on a phone,
-     so it starts collapsed and the "stats" button brings it back. */
-  .app.no-hud .hud { display: none; }
-  .hud { min-height: 0; max-height: 34vh; }
-
-  .log { height: 76px; }
-
-  /* Touch targets. 34px is fine for a mouse and too small for a thumb;
-     Android's minimum comfortable target is 48dp and 44px is the
-     widely-cited floor. */
-  .fs-toggle {
-    width: 44px;
-    height: 44px;
-    font-size: 17px;
-    border-radius: 10px;
-  }
-  /**
-   * The bar is anchored to the RIGHT of the window, and the desktop rule
-   * offsets it by the width of the side panel (412px). On a phone there is no
-   * side panel, so that offset pushed the whole bar off the left edge of the
-   * screen — measured at x = -266 for the first button.
-   */
-  .fs-bar {
-    gap: 6px;
-    right: calc(8px + env(safe-area-inset-right));
-  }
-
-  .say input {
-    /* 16px, not 13px: iOS and Android both zoom the page when a focused
-       input is under 16px, which fights the fixed layout above. */
-    font-size: 16px;
-    padding: 11px 12px;
-  }
-  .say button { padding: 11px 16px; font-size: 14px; }
-  .mic { width: 44px; height: 44px; flex: 0 0 44px; }
-  .mic-fs { width: 56px; height: 56px; bottom: 72px; }
-
-  .zoombar { right: 8px; padding: 10px 6px; }
-  .zoombar-track { height: 104px; }
-
-  /* The fullscreen hint talks about the F key, which a phone does not
-     have. */
-  .fs-hint { display: none; }
+.status-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
 }
 
-/* The stats toggle only earns its place on a phone. */
-.hud-toggle {
-  display: none;
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--dim);
-  border-radius: 6px;
-  padding: 3px 8px;
-  font: inherit;
-  font-size: 11px;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.hud-toggle:hover { color: var(--text); border-color: var(--accent); }
-.hud-toggle[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-/* The cloud button carries a dot when a provider is configured, so its state
-   is visible without opening the sheet. */
-.hud-toggle.active { color: var(--ok); border-color: var(--ok); }
+.cyber-status-chip.thinking { border-color: rgba(0, 240, 255, 0.5); color: var(--accent-cyan); }
+.cyber-status-chip.thinking .status-pulse-dot { background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); animation: dot-pulse 1s infinite; }
 
-@media (max-width: 900px), (pointer: coarse) {
-  .hud-toggle { display: block; }
-  .head-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-}
+.cyber-status-chip.working { border-color: rgba(245, 158, 11, 0.5); color: var(--accent-amber); }
+.cyber-status-chip.working .status-pulse-dot { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); animation: dot-pulse 0.7s infinite; }
 
-/* ==================================================================
-   AUDIO GATE
-   ==================================================================
-   Shown only on touch devices, and only until the first tap. See the
-   comment in index.html: mobile browsers will not start an AudioContext
-   without a user gesture, and the whole lip-sync pipeline is an
-   AudioContext graph.
-   ================================================================== */
+.cyber-status-chip.speaking { border-color: rgba(255, 42, 133, 0.6); color: #ff66b2; }
+.cyber-status-chip.speaking .status-pulse-dot { background: var(--accent-pink); box-shadow: 0 0 10px var(--accent-pink); animation: dot-pulse 0.5s infinite; }
 
-.audio-gate {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  /* A dim, blurred scrim: the character is visible behind it, so the
-     gate reads as "she is here but asleep" rather than as an error. */
-  background: rgba(10, 12, 18, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.audio-gate[hidden] { display: none; }
+.cyber-status-chip.listening { border-color: rgba(157, 78, 221, 0.6); color: #c77dff; }
+.cyber-status-chip.listening .status-pulse-dot { background: var(--accent-purple); box-shadow: 0 0 8px var(--accent-purple); animation: dot-pulse 0.6s infinite; }
 
-.audio-gate-btn {
+/* ==========================================================================
+   Vertical Zoom Slider & Fullscreen Hints
+   ========================================================================== */
+.zoombar {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  width: min(320px, 100%);
-  padding: 28px 22px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-  text-align: center;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 999px;
+  background: rgba(14, 18, 30, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border);
+  user-select: none;
+  cursor: ns-resize;
 }
-.audio-gate-btn:active { transform: scale(0.98); }
 
-.gate-ring {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  border: 2px solid var(--accent);
+.zoombar-track {
   position: relative;
+  width: 5px;
+  height: 120px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
 }
-.gate-ring::after {
-  content: '';
+
+.zoombar-thumb {
   position: absolute;
-  inset: -2px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  border: 2px solid var(--accent);
-  animation: gate-pulse 1.9s ease-out infinite;
-}
-@keyframes gate-pulse {
-  0% { transform: scale(1); opacity: 0.7; }
-  100% { transform: scale(1.7); opacity: 0; }
+  background: var(--accent-cyan);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
 }
 
-.gate-title { font-size: 17px; font-weight: 600; }
-.gate-sub { font-size: 12px; color: var(--dim); line-height: 1.4; }
-
-/* ==================================================================
-   CLOUD SETTINGS SHEET
-   ==================================================================
-   A bottom sheet on a phone, a centred card on a desktop.
-   ================================================================== */
-
-.head-actions { display: flex; gap: 6px; flex: 0 0 auto; }
-
-.sheet {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(10, 12, 18, 0.7);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.sheet[hidden] { display: none; }
-
-.sheet-card {
-  width: min(420px, 100%);
-  max-height: 90vh;
-  overflow-y: auto;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 18px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+.zoombar:not(.dragging) .zoombar-thumb {
+  transition: top 90ms ease-out;
 }
 
-.sheet-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-.sheet-head h2 { margin: 0; font-size: 16px; }
-
-.sheet-close {
-  background: transparent;
-  border: 0;
-  color: var(--dim);
-  font-size: 24px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 4px;
-}
-.sheet-close:hover { color: var(--text); }
-
-.sheet-note {
-  margin: 0 0 14px;
-  font-size: 12px;
-  color: var(--dim);
-  line-height: 1.45;
-}
-
-.field { display: block; margin-bottom: 12px; }
-.field > span {
-  display: block;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
-  color: var(--dim);
-  margin-bottom: 5px;
-}
-.field input,
-.field select {
-  width: 100%;
-  background: #0c0e14;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--text);
-  padding: 10px;
-  font: inherit;
-  /* 16px so focusing the field does not zoom the page on a phone. */
-  font-size: 16px;
-}
-.field input:focus,
-.field select:focus { outline: none; border-color: var(--accent); }
-
-.sheet-hint {
-  margin: 0 0 12px;
-  font-size: 11.5px;
-  color: var(--dim);
-  min-height: 16px;
-}
-
-.sheet-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.sheet-primary,
-.sheet-ghost {
-  flex: 1 1 auto;
-  border-radius: 6px;
-  padding: 11px 12px;
-  font: inherit;
-  font-weight: 700;
+.zoombar-zoom {
   font-size: 13px;
-  cursor: pointer;
-}
-.sheet-primary { background: var(--accent); color: #06202c; border: 0; }
-.sheet-ghost { background: transparent; color: var(--dim); border: 1px solid var(--line); }
-.sheet-ghost:hover { color: var(--text); border-color: var(--accent); }
-.sheet-ghost.danger:hover { color: var(--err); border-color: var(--err); }
-
-.sheet-status {
-  margin: 12px 0 0;
-  font-size: 12px;
-  color: var(--dim);
-  min-height: 16px;
-  word-break: break-word;
-}
-.sheet-status.ok { color: var(--ok); }
-.sheet-status.error { color: var(--err); }
-
-@media (max-width: 900px), (pointer: coarse) {
-  /* A bottom sheet, not a centred card: on a phone the card would sit
-     awkwardly in the middle with the keyboard about to cover it. */
-  .sheet { place-items: end center; padding: 0; }
-  .sheet-card {
-    width: 100%;
-    border-radius: 16px 16px 0 0;
-    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
-    max-height: 92dvh;
-  }
-  .sheet-actions .sheet-primary,
-  .sheet-actions .sheet-ghost { padding: 13px 12px; font-size: 14px; }
+  line-height: 1;
+  color: var(--text-dim);
 }
 
-/* ------------------------------------------------------------- Desktop Overlay Mode */
-body.overlay-mode,
-body.overlay-mode html {
+.zoombar-label {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  min-width: 32px;
+  text-align: center;
+}
+
+.fs-hint {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: rgba(14, 18, 30, 0.85);
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 40;
+}
+
+.app.fs .fs-hint {
+  opacity: 1;
+}
+
+.fs-hint kbd {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  color: #fff;
+}
+
+/* Fullscreen Mode */
+.app.fs .top-dock,
+.app.fs .chat-stream-dock,
+.app.fs .bottom-command-capsule,
+.app.fs .hud-drawer {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+
+.app.fs .mic-fs {
+  display: grid;
+}
+
+.mic-fs {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 35;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--panel-border-glow);
+  background: rgba(14, 18, 30, 0.85);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  display: none;
+  place-items: center;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.mic-fs:hover {
+  border-color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   Desktop Overlay Mode (pywebview transparent window)
+   ========================================================================== */
+.overlay-bar {
+  display: none;
+}
+
+body.overlay-mode {
   background: transparent !important;
-}
-
-body.overlay-mode .app {
-  grid-template-columns: 1fr !important;
-  background: transparent !important;
-  height: 100vh !important;
-}
-
-body.overlay-mode .panel,
-body.overlay-mode .controls,
-body.overlay-mode .zoombar,
-body.overlay-mode .fs-hint,
-body.overlay-mode #mic-fs {
-  display: none !important;
 }
 
 body.overlay-mode .viewport {
   background: transparent !important;
-  position: relative;
-  width: 100vw;
-  height: 100vh;
 }
 
 body.overlay-mode #stage {
   background: transparent !important;
 }
 
-/* Floating overlay command bar */
-.overlay-bar {
-  display: none;
+body.overlay-mode .top-dock,
+body.overlay-mode .chat-stream-dock,
+body.overlay-mode .bottom-command-capsule,
+body.overlay-mode .hud-drawer,
+body.overlay-mode .cyber-status-chip,
+body.overlay-mode .zoombar {
+  display: none !important;
 }
 
 body.overlay-mode .overlay-bar {
@@ -1223,26 +993,25 @@ body.overlay-mode .overlay-bar {
   align-items: center;
   gap: 8px;
   position: fixed;
-  bottom: 16px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 24px);
-  max-width: 440px;
-  background: rgba(11, 14, 25, 0.88);
+  max-width: 420px;
+  background: rgba(12, 16, 28, 0.88);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 240, 255, 0.28);
+  border: 1px solid rgba(0, 240, 255, 0.3);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 240, 255, 0.15);
   border-radius: 9999px;
   padding: 6px 12px;
   z-index: 9999;
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
 }
 
 body.overlay-mode .overlay-bar:hover {
-  background: rgba(14, 18, 32, 0.94);
+  background: rgba(15, 20, 34, 0.94);
   border-color: rgba(255, 42, 133, 0.5);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 42, 133, 0.25);
 }
 
 .overlay-drag-handle {
@@ -1255,11 +1024,18 @@ body.overlay-mode .overlay-bar:hover {
   border: 1px solid rgba(0, 240, 255, 0.3);
   cursor: grab;
   user-select: none;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  color: #00f0ff;
+  color: var(--accent-cyan);
   letter-spacing: 0.8px;
-  text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+}
+
+.overlay-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  animation: dot-pulse 2s infinite ease-in-out;
 }
 
 .overlay-status-badge {
@@ -1270,8 +1046,8 @@ body.overlay-mode .overlay-bar:hover {
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.05);
   font-size: 10.5px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  color: #a0aec0;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
   white-space: nowrap;
   max-width: 140px;
   overflow: hidden;
@@ -1282,54 +1058,13 @@ body.overlay-mode .overlay-bar:hover {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #05ffa1;
-  box-shadow: 0 0 6px #05ffa1;
+  background: var(--accent-green);
 }
 
-.overlay-status-badge.thinking { color: #00f0ff; }
-.overlay-status-badge.thinking .status-indicator-dot {
-  background: #00f0ff;
-  box-shadow: 0 0 8px #00f0ff;
-  animation: cyber-pulse 1s infinite;
-}
-
-.overlay-status-badge.working { color: #ffb703; }
-.overlay-status-badge.working .status-indicator-dot {
-  background: #ffb703;
-  box-shadow: 0 0 8px #ffb703;
-  animation: cyber-pulse 0.7s infinite;
-}
-
-.overlay-status-badge.speaking { color: #ff2a85; }
-.overlay-status-badge.speaking .status-indicator-dot {
-  background: #ff2a85;
-  box-shadow: 0 0 8px #ff2a85;
-  animation: cyber-pulse 0.5s infinite;
-}
-
-.overlay-status-badge.listening { color: #9d4edd; }
-.overlay-status-badge.listening .status-indicator-dot {
-  background: #9d4edd;
-  box-shadow: 0 0 8px #9d4edd;
-  animation: cyber-pulse 0.6s infinite;
-}
-
-.overlay-status-badge.ready { color: #05ffa1; }
-.overlay-status-badge.ready .status-indicator-dot {
-  background: #05ffa1;
-  box-shadow: 0 0 6px #05ffa1;
-}
-
-.overlay-dot {
-  color: #05ffa1;
-  font-size: 10px;
-  animation: overlay-pulse 2s infinite ease-in-out;
-}
-
-@keyframes overlay-pulse {
-  0%, 100% { opacity: 0.6; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
+.overlay-status-badge.thinking { color: var(--accent-cyan); }
+.overlay-status-badge.working { color: var(--accent-amber); }
+.overlay-status-badge.speaking { color: var(--accent-pink); }
+.overlay-status-badge.listening { color: var(--accent-purple); }
 
 .overlay-input {
   flex: 1 1 auto;
@@ -1337,21 +1072,21 @@ body.overlay-mode .overlay-bar:hover {
   background: transparent;
   border: none;
   outline: none;
-  color: #e6ebf5;
+  color: var(--text-main);
   font-size: 13px;
   padding: 4px 6px;
   -webkit-app-region: no-drag;
 }
 
 .overlay-input::placeholder {
-  color: #8b96ad;
+  color: var(--text-subtle);
   font-size: 12px;
 }
 
 .overlay-btn {
   background: transparent;
   border: none;
-  color: #8b96ad;
+  color: var(--text-dim);
   font-size: 14px;
   cursor: pointer;
   padding: 6px 8px;
@@ -1364,12 +1099,12 @@ body.overlay-mode .overlay-bar:hover {
 }
 
 .overlay-btn:hover {
-  color: #00f0ff;
+  color: var(--accent-cyan);
   background: rgba(0, 240, 255, 0.15);
 }
 
 .overlay-btn.primary {
-  background: linear-gradient(135deg, #ff2a85, #ff0077);
+  background: linear-gradient(135deg, var(--accent-pink), #e11d48);
   color: #fff;
   font-weight: 700;
   font-size: 12px;
@@ -1377,12 +1112,186 @@ body.overlay-mode .overlay-bar:hover {
   box-shadow: 0 2px 10px rgba(255, 42, 133, 0.35);
 }
 
-.overlay-btn.primary:hover {
-  filter: brightness(1.15);
+/* ==========================================================================
+   Modals & Sheets
+   ========================================================================== */
+.sheet {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 200;
 }
 
-.overlay-btn.recording {
-  color: #ff2a85;
-  animation: overlay-pulse 1s infinite;
+.sheet[hidden] {
+  display: none;
 }
 
+.sheet-card {
+  width: 100%;
+  max-width: 480px;
+  background: rgba(14, 18, 30, 0.95);
+  border: 1px solid var(--panel-border-glow);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sheet-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sheet-close {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.field input,
+.field select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--accent-cyan);
+  outline: none;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.sheet-actions button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--card-border);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.sheet-actions button.primary {
+  background: var(--accent-cyan);
+  color: #041019;
+  border: none;
+}
+
+.sheet-hint, .sheet-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.sheet-status {
+  margin: 0;
+  font-size: 11.5px;
+  min-height: 16px;
+}
+
+.sheet-status.ok { color: var(--accent-green); }
+.sheet-status.error { color: var(--accent-red); }
+
+/* Audio gate */
+.audio-gate {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 16, 0.85);
+  backdrop-filter: blur(12px);
+  display: grid;
+  place-items: center;
+  z-index: 300;
+}
+
+.audio-gate[hidden] {
+  display: none;
+}
+
+.audio-gate-btn {
+  background: rgba(16, 22, 38, 0.9);
+  border: 1px solid var(--accent-cyan);
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.3);
+  border-radius: 16px;
+  padding: 24px 32px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.gate-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.gate-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================= */
+@media (max-width: 768px) {
+  .top-dock-center {
+    display: none;
+  }
+
+  .chat-stream-dock {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: calc(115px + env(safe-area-inset-bottom));
+    max-height: 28vh;
+  }
+
+  .bottom-command-capsule {
+    width: calc(100% - 24px);
+  }
+
+  .quick-chip {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .hud-drawer {
+    width: 100vw;
+  }
+}

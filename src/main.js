@@ -68,7 +68,13 @@ const overlayStatusBadgeEl = document.getElementById('overlay-status-badge');
 const overlayStatusTextEl = document.getElementById('overlay-status-text');
 const cyberStatusChipEl = document.getElementById('cyber-status-chip');
 const cyberStatusTextEl = document.getElementById('cyber-status-text');
+const headerStatusPillEl = document.getElementById('header-status-pill');
 const affectionTitleEl = document.getElementById('affection-title');
+
+const hudDrawer = document.getElementById('hud-drawer');
+const hudDrawerClose = document.getElementById('hud-drawer-close');
+const chatStreamDock = document.getElementById('chat-stream-dock');
+const chatStreamToggle = document.getElementById('chat-stream-toggle');
 
 // Same-origin; the Vite plugin forwards these to LM Studio and the local voice
 // service. Kept as one place so the endpoints are easy to see.
@@ -91,6 +97,9 @@ const setStatus = (msg, kind = '') => {
   if (statusEl) {
     statusEl.textContent = msg;
     statusEl.className = `status ${inferred}`;
+  }
+  if (headerStatusPillEl) {
+    headerStatusPillEl.className = `header-status-pill ${inferred}`;
   }
   if (overlayStatusTextEl) {
     overlayStatusTextEl.textContent = msg;
@@ -194,7 +203,7 @@ let booted = false;
  * A single `chosenCooldownUntil` covering both one-shots meant they excluded
  * each other: asking for a kiss set it 45s out, and an "are you bored" 7s later
  * was dropped on the same check, so she just sat there talking. The model had
- * already chosen correctly — the choice was discarded on arrival. Per-animation
+ * already chosen correctly  -  the choice was discarded on arrival. Per-animation
  * cooldowns only stop the model repeating the SAME one-shot, which is all they
  * were ever meant to do.
  */
@@ -226,7 +235,7 @@ async function boot() {
      *
      * The seven clips are 25MB of FBX. Waiting for all of them before the
      * app became interactive meant she did not appear until every file had
-     * downloaded AND parsed — over a phone's connection that is the whole
+     * downloaded AND parsed  -  over a phone's connection that is the whole
      * cold start. These two are the ones she cannot be without; BORED (the
      * largest clip at 8.9MB) arrives only if she is idle long enough to
      * need it.
@@ -319,10 +328,10 @@ async function boot() {
   );
 
   const mapNote = m.mapsSkipped
-    ? ` (${m.mapsSkipped} texture(s) never loaded — maps skipped)`
+    ? ` (${m.mapsSkipped} texture(s) never loaded  -  maps skipped)`
     : '';
   setStatus(
-    `Ready — ${m.bones} bones, blink via ${fs?.upperLid ? `${fs.upperLid} eyelid bones` : `${m.blinkMode} shapes`}, mouth via ${fs?.jaw ? 'jaw bone' : 'viseme shapes'}, hair ${hs ? `${hs.branches} chains` : 'none'}, ${m.mapsDerived} derived map set(s)${mapNote}`,
+    `Ready  -  ${m.bones} bones, blink via ${fs?.upperLid ? `${fs.upperLid} eyelid bones` : `${m.blinkMode} shapes`}, mouth via ${fs?.jaw ? 'jaw bone' : 'viseme shapes'}, hair ${hs ? `${hs.branches} chains` : 'none'}, ${m.mapsDerived} derived map set(s)${mapNote}`,
     m.mapsSkipped ? '' : 'ok'
   );
 
@@ -339,7 +348,7 @@ async function boot() {
       'sys',
       `Bored ${clipDuration(STATES.BORED)} (played once) · ` +
         `Sitting ${clipDuration(STATES.SITTING_IDLE)} · ` +
-        `Sitting talking ${clipDuration(STATES.SITTING_TALKING)} — press S to sit`
+        `Sitting talking ${clipDuration(STATES.SITTING_TALKING)}  -  press S to sit`
     );
   });
 
@@ -375,7 +384,7 @@ async function boot() {
   memory = new MemoryClient();
   memory.load().then((m) => {
     if (memory.available === false) {
-      log('err', 'Memory file unavailable — she will forget between restarts.');
+      log('err', 'Memory file unavailable  -  she will forget between restarts.');
       return;
     }
     // The local path gets her memory injected server-side, but the cloud
@@ -640,6 +649,16 @@ function setFullscreen(on) {
     log('sys', 'Camera reset');
   });
   hudToggleBtn?.addEventListener('click', toggleHud);
+  hudDrawerClose?.addEventListener('click', () => {
+    hudDrawer?.classList.remove('open');
+    hudToggleBtn?.setAttribute('aria-pressed', 'false');
+    hudToggleBtn?.setAttribute('aria-expanded', 'false');
+    hudDrawer?.setAttribute('aria-hidden', 'true');
+  });
+  chatStreamToggle?.addEventListener('click', () => {
+    chatStreamDock?.classList.toggle('collapsed');
+    chatStreamToggle.textContent = chatStreamDock?.classList.contains('collapsed') ? '+' : '_';
+  });
 window.addEventListener('keydown', (e) => {
   if (e.key === 'f' || e.key === 'F') {
     if (e.target === inputEl) return; // don't hijack typing
@@ -690,18 +709,15 @@ function toggleSit() {
 }
 
 /**
- * Show or hide the debug telemetry.
- *
- * Collapsed by default on a phone: the meters, cross-fade weights and gaze
- * angles are the largest block in the panel and the least useful thing on a
- * 360px-wide screen, where they push the chat input off the bottom.
+ * Show or hide the telemetry drawer.
  */
 function toggleHud() {
-  const hidden = appEl.classList.toggle('no-hud');
-  hudToggleBtn?.setAttribute('aria-pressed', String(!hidden));
-  hudToggleBtn?.setAttribute('aria-expanded', String(!hidden));
-  log('sys', hidden ? 'Stats hidden' : 'Stats shown');
-  return !hidden;
+  const isOpen = hudDrawer?.classList.toggle('open');
+  hudToggleBtn?.setAttribute('aria-pressed', String(Boolean(isOpen)));
+  hudToggleBtn?.setAttribute('aria-expanded', String(Boolean(isOpen)));
+  hudDrawer?.setAttribute('aria-hidden', String(!isOpen));
+  log('sys', isOpen ? 'Telemetry drawer opened' : 'Telemetry drawer closed');
+  return Boolean(isOpen);
 }
 
 // ------------------------------------------------------------------ zoom bar
@@ -964,12 +980,12 @@ async function say(explicitText) {
       // She said a tag, but not one we can play. It has been stripped from the
       // speech already; say so, because otherwise a turn silently loses its
       // animation and looks exactly like the model not caring.
-      log('err', `unplayable anim tag "[[anim:${result.unknownTag}]]" — ignored`);
+      log('err', `unplayable anim tag "[[anim:${result.unknownTag}]]"  -  ignored`);
     }
     if (result.via === 'cloud') {
       // Say so plainly. A reply from a different model is a different
       // quality, and the user should be able to tell which one spoke.
-      log('sys', 'answered by the cloud — your PC is unreachable');
+      log('sys', 'answered by the cloud  -  your PC is unreachable');
     }
     log('orb', result.text);
   }
@@ -984,7 +1000,7 @@ async function say(explicitText) {
   // Persist the exchange. Not awaited: the reply is already on screen and
   // recording it must never delay anything.
   void memory?.record(text, result.text);
-  setStatus(`Ready — ${secs}s turn`, 'ok');
+  setStatus(`Ready  -  ${secs}s turn`, 'ok');
 }
 
 /** Lazily build the audio stack, on the first user gesture. */
@@ -1155,9 +1171,9 @@ async function refreshServices({ retries = 1, delayMs = 3000 } = {}) {
     if (i < retries - 1) await new Promise((r) => setTimeout(r, delayMs));
   }
   if (!h) return null;
-  if (!h.llm) log('err', 'No AI backend found — run `npm run listener` for Gemini or start LM Studio');
-  if (!h.voice) log('err', 'Voice service down — run: python voice/local_voice.py');
-  else if (!h.stt) log('err', 'Voice service up but STT disabled (--no-stt) — no dictation.');
+  if (!h.llm) log('err', 'No AI backend found  -  run `npm run listener` for Gemini or start LM Studio');
+  if (!h.voice) log('err', 'Voice service down  -  run: python voice/local_voice.py');
+  else if (!h.stt) log('err', 'Voice service up but STT disabled (--no-stt)  -  no dictation.');
   if (h.isGemini) {
     log('sys', `Brain: 🌸 Gemini Agent (Active Listener + Tools) · Voice: ${h.voice ? 'Piper' : 'off'} · STT: ${h.stt ? `whisper ${h.sttDevice || 'local'}` : 'off'}`);
   } else if (h.llm) {
@@ -1205,7 +1221,7 @@ function settleAfterSpeech() {
 function applyChosenAnimation(choice) {
   // Recorded BEFORE the null guard, and reset on null. Leaving the previous
   // value in place made the HUD show a stale choice for a turn that never chose
-  // anything, which reads as "she picked bored and nothing happened" — the same
+  // anything, which reads as "she picked bored and nothing happened"  -  the same
   // misleading picture as a suppressed choice, from a different cause.
   lastChosenAnimation = choice || null;
   if (!choice) {
@@ -1457,7 +1473,7 @@ function frame(dt, elapsed) {
  * Cloud fallback settings.
  *
  * She normally runs on the model on your PC, reached over Tailscale. When
- * that is unreachable — the PC is asleep, or off the tailnet — this
+ * that is unreachable  -  the PC is asleep, or off the tailnet  -  this
  * configures a hosted model to use INSTEAD, called directly from this
  * device rather than through the PC.
  *
@@ -1531,7 +1547,7 @@ function openCloudSheet() {
   cloudKeyInput.value = s?.apiKey || '';
   apiBaseInput.value = getApiBase();
   apiBaseHint.textContent = `Currently: ${describeConnection()}`;
-  setCloudStatus(s ? `Active — ${describeCloud()}` : 'Not configured', s ? 'ok' : '');
+  setCloudStatus(s ? `Active  -  ${describeCloud()}` : 'Not configured', s ? 'ok' : '');
   cloudSheet.hidden = false;
 }
 
@@ -1551,7 +1567,7 @@ function saveCloud() {
     return;
   }
   saveCloudSettings(v);
-  setCloudStatus(`Saved — ${describeCloud()}`, 'ok');
+  setCloudStatus(`Saved  -  ${describeCloud()}`, 'ok');
   markCloudActive(true);
   log('sys', `Cloud fallback: ${describeCloud()}`);
 }
@@ -1595,7 +1611,7 @@ async function testCloud() {
     }
     const j = await res.json();
     const text = j?.choices?.[0]?.message?.content?.trim() || '(no text)';
-    setCloudStatus(`Works — "${text}"`, 'ok');
+    setCloudStatus(`Works  -  "${text}"`, 'ok');
     markCloudActive(true);
   } catch (e) {
     setCloudStatus(`Failed: ${e.message}`, 'error');
@@ -1626,7 +1642,7 @@ markCloudActive(cloudConfigured());
  * Four things a phone needs that a desktop does not:
  *
  *  1. A gate. Mobile browsers refuse to start an AudioContext without a
- *     user gesture, and the whole lip-sync path is an AudioContext graph —
+ *     user gesture, and the whole lip-sync path is an AudioContext graph  - 
  *     the analyser the visemes are computed from is a node in it. Without
  *     this, the first reply comes out silent with no indication why.
  *  2. A screen wake lock, or the display sleeps halfway through a sentence.
