@@ -32,15 +32,10 @@ export const ANIMATIONS = {
     forState: 'idle',
   },
 
-  // --- Expressive Talking (4 varied gesturing animations for lively conversation)
+  // --- Expressive Talking (gesturing animations for natural conversation)
   talking: { url: 'models/animations/jinx-talking.fbx', loop: true, fadeIn: 0.35, fadeOut: 0.4 },
   talkingAlt: {
     url: 'models/animations/jinx-talking-alt.fbx', loop: true, fadeIn: 0.35, fadeOut: 0.4,
-    variant: true,
-    forState: 'talking',
-  },
-  talkingLong: {
-    url: 'models/animations/jinx-talking-long.fbx', loop: true, fadeIn: 0.35, fadeOut: 0.4,
     variant: true,
     forState: 'talking',
   },

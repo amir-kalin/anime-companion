@@ -60,6 +60,7 @@ export default defineConfig(({ mode }) => {
           '**/dist/**',
           '**/build/**',
           '**/release/**',
+          '**/public/models/**',
           '**/voice/.venv*/**',
           '**/node_modules/**',
         ],
